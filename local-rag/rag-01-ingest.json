@@ -1,0 +1,205 @@
+{
+  "name": "Lokalni RAG 01 - indeksiranje dokumenata",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-900, 0],
+      "id": "810b0791-6555-42d4-84ba-a1d163eec3d6",
+      "name": "Pokreni ručno"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/files/**/*.{pdf,docx,txt,md}",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [-680, 0],
+      "id": "6519f0c6-7b19-4b4c-9598-9c8e750b2549",
+      "name": "Pročitaj dokumente s diska"
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "type": "SHA256",
+        "dataPropertyName": "checksum",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [0, 120],
+      "id": "c52b1225-92ac-4949-a163-9c75ff4dc2fb",
+      "name": "Izračunaj SHA-256"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-240, 0],
+      "id": "cff8337b-bd1e-478a-aafd-b036b0a7eb67",
+      "name": "Jedna datoteka po krugu"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {
+          "clashHandling": {
+            "values": {
+              "resolveClash": "preferInput2",
+              "mergeMode": "deepMerge",
+              "overrideEmpty": false
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [220, 20],
+      "id": "ccb10fa8-749d-4f3d-849f-87ee99f5ec02",
+      "name": "Vrati datoteku uz checksum"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "lokalni_dokumenti_v1",
+          "mode": "id"
+        },
+        "embeddingBatchSize": 64,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [460, 20],
+      "id": "a9e72319-6910-46c6-aa3f-614fb8dca2b6",
+      "name": "Upiši u Qdrant",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "model": "qwen3-embedding:0.6b"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [-80, 340],
+      "id": "31486d08-d5a1-47ed-abf8-26e2637f5a60",
+      "name": "Lokalni embedding model"
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "binaryMode": "specificField",
+        "loader": "auto",
+        "binaryDataKey": "data",
+        "textSplittingMode": "custom",
+        "options": {
+          "splitPages": true,
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source_name",
+                "value": "={{ $json.fileName }}"
+              },
+              {
+                "name": "checksum",
+                "value": "={{ $json.checksum }}"
+              },
+              {
+                "name": "indexed_at",
+                "value": "={{ $now.toISO() }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [100, 340],
+      "id": "03700fe4-6a3d-4a0f-9aa8-8c6d7717661f",
+      "name": "Učitaj dokument i metapodatke"
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 120,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [260, 500],
+      "id": "0d0538e8-7f73-4622-9dbd-03d9b44ad4fd",
+      "name": "Razreži na 800 + 120 znakova"
+    },
+    {
+      "parameters": {
+        "content": "## PRIJE POKRETANJA\n- Postavite Ollama credential na `http://ollama:11434`.\n- Postavite Qdrant credential na `http://qdrant:6333` i upišite API ključ iz `.env`.\n- Pridružite credentiale čvorovima za embeddinge i Qdrant.\n- Dokumente stavite u mapu `documents/` uz compose.yaml.\n- Skenirani PDF bez OCR tekstualnog sloja neće dati koristan sadržaj.\n- Promijenite li embedding model, napravite novu kolekciju i ponovno indeksirajte sve.",
+        "height": 280,
+        "width": 460,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-900, -400],
+      "id": "d533e8f5-d035-4ef9-a523-520b704ee148",
+      "name": "Upute"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Pokreni ručno": {
+      "main": [[{"node": "Pročitaj dokumente s diska", "type": "main", "index": 0}]]
+    },
+    "Pročitaj dokumente s diska": {
+      "main": [[{"node": "Jedna datoteka po krugu", "type": "main", "index": 0}]]
+    },
+    "Jedna datoteka po krugu": {
+      "main": [[], [
+        {"node": "Izračunaj SHA-256", "type": "main", "index": 0},
+        {"node": "Vrati datoteku uz checksum", "type": "main", "index": 0}
+      ]]
+    },
+    "Izračunaj SHA-256": {
+      "main": [[{"node": "Vrati datoteku uz checksum", "type": "main", "index": 1}]]
+    },
+    "Vrati datoteku uz checksum": {
+      "main": [[{"node": "Upiši u Qdrant", "type": "main", "index": 0}]]
+    },
+    "Upiši u Qdrant": {
+      "main": [[{"node": "Jedna datoteka po krugu", "type": "main", "index": 0}]]
+    },
+    "Lokalni embedding model": {
+      "ai_embedding": [[{"node": "Upiši u Qdrant", "type": "ai_embedding", "index": 0}]]
+    },
+    "Učitaj dokument i metapodatke": {
+      "ai_document": [[{"node": "Upiši u Qdrant", "type": "ai_document", "index": 0}]]
+    },
+    "Razreži na 800 + 120 znakova": {
+      "ai_textSplitter": [[{"node": "Učitaj dokument i metapodatke", "type": "ai_textSplitter", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Zagreb"
+  },
+  "versionId": "33aa3038-191b-4d86-9c84-ab53b9d46724",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
