@@ -14,7 +14,7 @@ PowerShell Execution Policy.
 
 1. Instalirajte 64-bitni Python 3.11 i potvrdite `py -3.11 --version`.
 2. Pokrenite `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1`.
-3. Stavite Desktop OAuth datoteku u `credentials.json`, a OpenAI ključ u `.env`.
+3. U Google Cloud Consoleu izradite OAuth klijent tipa Desktop app, preuzmite njegovu JSON datoteku te je kopirajte u mapu inbox-agent pod nazivom `credentials.json`. Zatim u istoj mapi kopirajte `.env.example` u `.env` i u novu datoteku upišite svoj OpenAI API ključ.
 4. Prvi test pokrenite s `.\run-windows.ps1`; to je dry-run.
 5. Tek nakon pregleda pokrenite `.\run-windows.ps1 -Apply`.
 6. Zadatak za 07:30 pon–pet registrirajte tek na kraju pomoću
