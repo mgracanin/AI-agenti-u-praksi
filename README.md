@@ -1,7 +1,5 @@
 # AI-agenti-u-praksi
-Prateće datoteke i projekti za temu broja u Bugu o AI Agentima. Sve je generirano koristeću Claude Work (Codex)
-
-
+Prateće datoteke i projekti za temu broja u Bugu o AI Agentima. Sve je generirano koristeći ChatGPT Work (Codex) uz neke ručne dodrade i optimizacije.
 
 **PRAKTIČNA ARHITEKTURA**
 
