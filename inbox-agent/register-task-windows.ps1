@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$TaskName = 'AI jutarnja obrada Gmaila'
 )
