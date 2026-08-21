@@ -1,0 +1,12 @@
+# Python / inbox-agent
+inbox-agent/.venv/
+inbox-agent/.data/
+inbox-agent/out/
+inbox-agent/.env
+inbox-agent/credentials.json
+inbox-agent/__pycache__/
+inbox-agent/**/*.pyc
+
+# local-rag runtime data
+local-rag/.env
+local-rag/documents/

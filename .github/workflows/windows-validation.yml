@@ -1,0 +1,79 @@
+name: Windows validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  powershell-and-python:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: inbox-agent/requirements.txt
+
+      - name: Parse all PowerShell scripts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path inbox-agent,local-rag -Filter *.ps1 -Recurse
+          $hadErrors = $false
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $hadErrors = $true
+              foreach ($parseError in $errors) {
+                Write-Host "PARSER ERROR: $($file.FullName)"
+                Write-Host "  Line: $($parseError.Extent.StartLineNumber)"
+                Write-Host "  Column: $($parseError.Extent.StartColumnNumber)"
+                Write-Host "  End line: $($parseError.Extent.EndLineNumber)"
+                Write-Host "  End column: $($parseError.Extent.EndColumnNumber)"
+                Write-Host "  Message: $($parseError.Message)"
+                Write-Host "  Extent: <$($parseError.Extent.Text)>"
+              }
+            }
+          }
+          if ($hadErrors) {
+            throw 'PowerShell parser pronašao je jednu ili više sintaktičkih pogrešaka.'
+          }
+          Write-Host "Parsed $($files.Count) PowerShell scripts successfully."
+
+      - name: Install inbox-agent dependencies
+        shell: powershell
+        working-directory: inbox-agent
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+      - name: Ruff
+        shell: powershell
+        working-directory: inbox-agent
+        run: .\.venv\Scripts\python.exe -m ruff check .
+
+      - name: Pytest
+        shell: powershell
+        working-directory: inbox-agent
+        run: .\.venv\Scripts\python.exe -m pytest -q
+
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate CPU Compose configuration
+        working-directory: local-rag
+        run: |
+          cp .env.example .env
+          docker compose -f compose.yaml config -q
+      - name: Validate GPU Compose configuration
+        working-directory: local-rag
+        run: docker compose -f compose.yaml -f compose.gpu.yaml config -q
