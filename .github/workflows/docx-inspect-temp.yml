@@ -1,0 +1,65 @@
+name: Temporary DOCX inspection
+
+on:
+  push:
+    branches:
+      - docs/update-unified-guide-oauth
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install python-docx
+        run: python -m pip install --disable-pip-version-check python-docx==1.1.2
+      - name: Inspect unified guide structure
+        shell: bash
+        run: |
+          python - <<'PY'
+          from docx import Document
+          from pathlib import Path
+
+          path = Path('AI-agenti-u-praksi-unificirani-vodic.docx')
+          doc = Document(path)
+          paras = []
+          for i, p in enumerate(doc.paragraphs):
+              text = ' '.join(p.text.split())
+              paras.append((i, p.style.name if p.style else '', text))
+
+          print('=== DOCUMENT SUMMARY ===')
+          print(f'paragraphs={len(doc.paragraphs)} tables={len(doc.tables)} sections={len(doc.sections)}')
+          print('\n=== HEADINGS ===')
+          for i, style, text in paras:
+              s = style.lower()
+              if text and ('heading' in s or 'naslov' in s or s.startswith('title')):
+                  print(f'P{i:04d} [{style}] {text}')
+
+          keywords = ('gmail', 'oauth', 'credentials', 'inbox-agent', 'inbox agent', 'jutarnj', 'google cloud', 'google')
+          matches = [i for i, style, text in paras if text and any(k in text.lower() for k in keywords)]
+          print('\n=== KEYWORD CONTEXT ===')
+          shown = set()
+          for m in matches:
+              for j in range(max(0, m-5), min(len(paras), m+8)):
+                  if j in shown:
+                      continue
+                  shown.add(j)
+                  i, style, text = paras[j]
+                  if text:
+                      print(f'P{i:04d} [{style}] {text}')
+              print('---')
+
+          print('\n=== TABLES WITH KEYWORDS ===')
+          for ti, table in enumerate(doc.tables):
+              rows = []
+              for row in table.rows:
+                  cells = [' '.join(c.text.split()) for c in row.cells]
+                  rows.append(' | '.join(cells))
+              joined = '\n'.join(rows)
+              if any(k in joined.lower() for k in keywords):
+                  print(f'TABLE {ti}')
+                  print(joined)
+                  print('---')
+          PY
