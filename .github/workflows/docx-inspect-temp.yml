@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - docs/update-unified-guide-oauth
+  pull_request:
+    branches:
+      - main
 
 jobs:
   inspect:
